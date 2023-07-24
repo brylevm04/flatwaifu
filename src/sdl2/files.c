@@ -15,6 +15,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+EM_ASYNC_JS(void, sync_fs_quit2, (), {
+        await new Promise((resolve, reject) => {
+    FS.syncfs(function (err) {
+      // assert(!err);
+      if (err) console.log(err, "Error syncing FS!");
+      resolve()
+    });  
+    })
+})
+#endif
+
 #include "glob.h"
 #include <stdio.h>
 #include <string.h>
@@ -150,7 +163,9 @@ static char *getsavfpname (int n, int ro) {
   static char fn[] = "savgame0.dat";
   static char p[100];
   fn[7] = n + '0';
-#ifdef UNIX
+#if defined(__EMSCRIPTEN__)
+  sprintf(p, "/persistent/%s", fn);
+#elif defined(UNIX)
   char *e = getenv("HOME");
   strncpy(p, e, 60);
   strcat(p, "/.flatwaifu");
@@ -198,4 +213,7 @@ void F_savegame (int n, char *s) {
     SAVE_save(&wr.base, s);
     SDLRW_Close(&wr);
   }
+#ifdef __EMSCRIPTEN__
+  sync_fs_quit2();
+#endif
 }
